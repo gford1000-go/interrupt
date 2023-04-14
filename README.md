@@ -25,7 +25,11 @@ func launchWorkers(ctx context.Context, n int) []chan any {
 
 		go func(work chan any) {
 			c := make(chan<- bool, 1)
-			defer close(c)
+			defer func() {
+				// Tidy on goroutine exit
+				m.Remove(c)
+				close(c)
+			}()
 
 			// c will receive a notification when a context event
 			// or interrupt occurs
