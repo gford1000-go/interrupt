@@ -90,7 +90,7 @@ func (i *Manager) Add(c chan<- bool) bool {
 
 // Remove disassociates the specified channel as a channel to be
 // notified for context events and general interrupts
-func (i *Manager) Remove(ctx context.Context, c chan<- bool) bool {
+func (i *Manager) Remove(c chan<- bool) bool {
 	return m.remove(i.ctx, c)
 }
 
@@ -99,6 +99,5 @@ func (i *Manager) Remove(ctx context.Context, c chan<- bool) bool {
 // each context, but an interrupt will be sent to all channels of
 // all contexts
 func NewManager(ctx context.Context) *Manager {
-	m.findOrCreate(ctx)
 	return &Manager{ctx: ctx}
 }
