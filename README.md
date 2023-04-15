@@ -8,8 +8,10 @@ interrupt provides a channel based approach to gracefully handle interrupts.
 
 ## Use
 
-Each time a `context` is created, `NewManager` can be called which returns 
-a context specific `Manager`.  
+`GetContextInterruptNotfier` is provided to provide a channel for a given context.
+
+For more fine-grained implementations, each time a context is created, `NewManager` can be called which returns 
+a context specific `Manager` instance.  
 
 The `Manager` allows channels to be added which will be signalled if the associated context completes or an interrupt occurs.
 
@@ -17,28 +19,21 @@ This allows functions to select against a `chan<- bool` rather than more complex
 
 ```go
 func launchWorkers(ctx context.Context, n int) []chan any {
-	m := NewManager(ctx)
 	workers = make([]chan any, n)
 	for i := 0; i < n; i++ {
-		ch := make(chan any)
-		workers[i] = ch
+		workers[i] = ch // for receiving tasks
 
 		go func(work chan any) {
-			c := make(chan<- bool, 1)
-			defer func() {
-				// Tidy on goroutine exit
-				m.Remove(c)
-				close(c)
-			}()
-
-			// c will receive a notification when a context event
-			// or interrupt occurs
-			m.Add(c)
-
+			c, ok := GetContextInterruptNotfier(ctx)
+			if !ok {
+				return // Indicates that the context has already 
+				       // completed or interrupt raised
+			}
 			for {
 				select {
 				case <-c:
-					return
+					return // Indicates that the context has already 
+						// completed or interrupt raised
 				case task := <-work:
 					// complete task
 					// ...

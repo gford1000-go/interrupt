@@ -101,3 +101,43 @@ func (i *Manager) Remove(c chan<- bool) bool {
 func NewManager(ctx context.Context) *Manager {
 	return &Manager{ctx: ctx}
 }
+
+// GetContextInterruptNotfier provides a single call to create
+// a channel that will receive an event when either the context
+// completes or an interrupt occurs.
+// The channel has been created successfully only if the function returns true.
+func GetContextInterruptNotfier(ctx context.Context) (<-chan bool, bool) {
+	c := make(chan bool, 1)
+
+	r := make(chan bool, 1)
+	defer close(r)
+
+	go func() {
+		shutdown := make(chan bool, 1)
+		defer close(shutdown)
+
+		m := NewManager(ctx)
+
+		addedOk := m.Add(shutdown)
+		r <- addedOk
+
+		if addedOk {
+			// Only if Add returns true has the shutdown channel
+			// been added successfully, so can now wait for notifications
+			defer func() {
+				m.Remove(shutdown)
+			}()
+
+			// Only interrupts or context events are captured and
+			// pushed to shutdown, which may therefore exit sooner
+			<-shutdown
+
+			// Notify to external party
+			c <- true
+		}
+
+		close(c)
+	}()
+
+	return c, <-r
+}
